@@ -61,16 +61,15 @@ view =
                 (Application (Variable "y") (Variable "y"))
             )
       )
-
-    -- , ( "(λx.xxx) (λy.yyy)"
-    --   , Application
-    --         (Abstraction "x"
-    --             (Application (Variable "x") (Application (Variable "x") (Variable "x")))
-    --         )
-    --         (Abstraction "y"
-    --             (Application (Variable "y") (Application (Variable "y") (Variable "y")))
-    --         )
-    --   )
+    , ( "(λx.xxx) (λy.yyy)"
+      , Application
+            (Abstraction "x"
+                (Application (Variable "x") (Application (Variable "x") (Variable "x")))
+            )
+            (Abstraction "y"
+                (Application (Variable "y") (Application (Variable "y") (Variable "y")))
+            )
+      )
     , ( "(λx.λy.λz.xyz) y"
       , Application
             (Abstraction "x"
@@ -134,50 +133,49 @@ view =
                 (Application (Variable "x") (Application (Variable "x") (Variable "x")))
             )
       )
-
-    , ( "(λxyz.xz(yz))(λxy.x)(λxyz.x(yz))(λxy.x)(λxyz.x(yz))(λxy.x)"
+    , ( "(λxyz.xz(yz))(λab.a)(λcde.c(de))(λfg.f)(λhij.h(ij))(λkl.k)"
       , Application
             (Application
                 (Application
-                    (Abstraction "x"
-                        (Abstraction "y"
-                            (Abstraction "z"
-                                (Application (Variable "x")
-                                    (Application (Variable "z")
-                                        (Application (Variable "y") (Variable "z"))
+                    (Application
+                        (Application
+                            (Abstraction "x"
+                                (Abstraction "y"
+                                    (Abstraction "z"
+                                        (Application (Variable "x")
+                                            (Application (Variable "z")
+                                                (Application (Variable "y") (Variable "z"))
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                            (Abstraction "a" (Abstraction "b" (Variable "a")))
+                        )
+                        (Abstraction "c"
+                            (Abstraction "d"
+                                (Abstraction "e"
+                                    (Application (Variable "c")
+                                        (Application (Variable "d") (Variable "e"))
                                     )
                                 )
                             )
                         )
                     )
-                    (Abstraction "x" (Abstraction "y" (Variable "x")))
+                    (Abstraction "f" (Abstraction "g" (Variable "f")))
                 )
-                (Application
-                    (Abstraction "x"
-                        (Abstraction "y"
-                            (Abstraction "z"
-                                (Application (Variable "x")
-                                    (Application (Variable "y") (Variable "z"))
-                                )
-                            )
-                        )
-                    )
-                    (Abstraction "x" (Abstraction "y" (Variable "x")))
-                )
-            )
-            (Application
-                (Abstraction "x"
-                    (Abstraction "y"
-                        (Abstraction "z"
-                            (Application (Variable "x")
-                                (Application (Variable "y") (Variable "z"))
+                (Abstraction "h"
+                    (Abstraction "i"
+                        (Abstraction "j"
+                            (Application (Variable "h")
+                                (Application (Variable "i") (Variable "j"))
                             )
                         )
                     )
                 )
-                (Abstraction "x" (Abstraction "y" (Variable "x")))
             )
-    )
+            (Abstraction "k" (Abstraction "l" (Variable "k")))
+      )
     ]
         |> List.map
             (\( mathForm, ast ) ->
@@ -211,36 +209,39 @@ reduce term =
             Abstraction param (reduce body)
 
         Application (Abstraction param body) value ->
-            maybeReduce term (apply param value body)
+            maybeReduce term (substitute param value body)
+
+        Application (Variable _) _ ->
+            term
 
         Application term1 term2 ->
-            maybeReduce term (Application (reduce term1) (reduce term2))
+            maybeReduce term (Application (reduce term1) term2)
+
+
+substitute : String -> Term -> Term -> Term
+substitute param value term =
+    case term of
+        Variable name ->
+            if name == param then
+                value
+
+            else
+                term
+
+        Abstraction param_ body ->
+            Abstraction param_ (substitute param value body)
+
+        Application term1 term2 ->
+            Application (substitute param value term1) (substitute param value term2)
 
 
 maybeReduce : Term -> Term -> Term
 maybeReduce current next =
-    if current == next || String.length (Debug.toString next) > String.length (Debug.toString current) then
+    if current == next || String.length (Debug.toString next) > String.length (Debug.toString current) * 2 then
         next
 
     else
         reduce <| next
-
-
-apply : String -> Term -> Term -> Term
-apply param value body =
-    case body of
-        Variable name ->
-            if name == param then
-                reduce <| value
-
-            else
-                reduce body
-
-        Abstraction param_ body_ ->
-            Abstraction param_ (reduce <| apply param value body_)
-
-        Application term1 term2 ->
-            Application (apply param value term1) (apply param value term2)
 
 
 toString : Term -> String
